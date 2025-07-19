@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>🛸 Sci-Fi Text Adventure</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#00fff7"/>
+  <style>
+    body {
+      background: #0d0f1a;
+      color: #e0e0e0;
+      font-family: 'Courier New', monospace;
+      padding: 20px;
+      max-width: 700px;
+      margin: auto;
+    }
+    h1 {
+      color: #00fff7;
+    }
+    .story {
+      margin-bottom: 20px;
+      white-space: pre-wrap;
+    }
+    .choices button {
+      background: #1e1f2f;
+      color: #00fff7;
+      border: 1px solid #00fff7;
+      padding: 10px 20px;
+      margin: 5px 0;
+      cursor: pointer;
+      width: 100%;
+      text-align: left;
+      border-radius: 10px;
+      transition: all 0.2s ease-in-out;
+    }
+    .choices button:hover {
+      background: #00fff7;
+      color: #1e1f2f;
+      transform: scale(1.02);
+    }
+    .status {
+      margin-bottom: 10px;
+      font-size: 0.9em;
+      color: #aaa;
+    }
+  </style>
+</head>
+<body>
+  <h1>🛸 Starcruiser Aetherion</h1>
+  <div class="status" id="status"></div>
+  <div class="story" id="story">Loading story...</div>
+  <div class="choices" id="choices"></div>
+  <audio id="clickSound" src="https://cdn.pixabay.com/download/audio/2022/10/31/audio_9c7188dbbe.mp3?filename=ui-click-124454.mp3"></audio>
+
+  <script>
+    const storyElement = document.getElementById("story");
+    const choicesElement = document.getElementById("choices");
+    const statusElement = document.getElementById("status");
+    const clickSound = document.getElementById("clickSound");
+
+    let playerName = "";
+    let inventory = [];
+
+    const scenes = {
+      intro: {
+        text: () => \`Welcome aboard, Commander \${playerName}.
+You awaken on Starcruiser Aetherion. The cryo-pod hisses open.
+A terminal reads:
+"CRITICAL DAMAGE. UNKNOWN LIFEFORM DETECTED."
+
+You see:
+1. A locker labeled *CAPTAIN*.
+2. A glowing control terminal.
+3. A dark hallway.\`,
+        choices: [
+          { text: "Open the Captain’s locker", next: "locker" },
+          { text: "Check the control terminal", next: "terminal" },
+          { text: "Walk into the hallway", next: "hallway" }
+        ]
+      },
+      terminal: {
+        text: () => \`You activate the control terminal.
+Mission: Transport alien specimen.
+Status: Specimen escaped.
+A voice crackles through the intercom:
+“\${playerName}... you shouldn’t have woken up.”
+
+Behind you, the Captain’s locker unlocks with a click.\`,
+        choices: [
+          { text: "Check the locker", next: "locker" },
+          { text: "Run into the hallway", next: "hallway" }
+        ]
+      },
+      locker: {
+        text: () => \`Inside the locker you find:
+🔫 Plasma Pistol
+📀 Data Chip labeled "EYES ONLY"
+🔲 Strange black cube pulsing softly
+You hear something skittering nearby...\`,
+        choices: [
+          { text: "Grab the Plasma Pistol", next: "pistol" },
+          { text: "Take the Data Chip and hide", next: "hide" },
+          { text: "Use the black cube to communicate", next: "cube" }
+        ]
+      },
+      hallway: {
+        text: () => \`The hallway is dark and cold. Red lights flash.
+You hear growling… Then something *big* charges toward you!\`,
+        choices: [
+          { text: "Run back!", next: "intro" },
+          { text: "Stand your ground", next: "end_bad" }
+        ]
+      },
+      pistol: {
+        text: () => {
+          inventory.push("Plasma Pistol");
+          return \`You aim the plasma pistol just in time.
+🔥 A shadow leaps — you fire!
+The creature screeches and retreats. You’re safe… for now.\`;
+        },
+        choices: [
+          { text: "Explore the rest of the ship", next: "end_good" }
+        ]
+      },
+      hide: {
+        text: () => {
+          inventory.push("Data Chip");
+          return \`You grab the chip and dive behind crates.
+The creature slithers past, sniffing… then vanishes.
+You insert the chip into the terminal.
+🎥 A secret video reveals: *You were the experiment all along...*\`;
+        },
+        choices: [
+          { text: "End Transmission", next: "end_twist" }
+        ]
+      },
+      cube: {
+        text: () => {
+          inventory.push("Black Cube");
+          return \`You hold the cube. It glows… suddenly, you see visions.
+👁 You’re connected to the alien hive mind.
+They’re not here to kill — they need your help.\`;
+        },
+        choices: [
+          { text: "Join the alien consciousness", next: "end_merge" }
+        ]
+      },
+      end_good: {
+        text: () => \`✅ You secured the ship and survived.
+New mission, Commander \${playerName}:
+Take control of the Aetherion and chart a new course.
+**THE END. (Good Ending)**\`
+      },
+      end_bad: {
+        text: () => \`💀 The creature lunges.
+You scream — but it’s too late.
+**THE END. (Bad Ending)**\`
+      },
+      end_twist: {
+        text: () => \`🧬 You were the specimen.
+They were studying *you*, \${playerName}.
+Now you’re free… but are you still human?
+**THE END. (Twist Ending)**\`
+      },
+      end_merge: {
+        text: () => \`🧠 You merge with the alien intelligence.
+Together, you begin a new age of understanding.
+**THE END. (Merged Ending)**\`
+      }
+    };
+
+    function showScene(key) {
+      const scene = scenes[key];
+      if (!scene) return;
+      storyElement.innerText = typeof scene.text === "function" ? scene.text() : scene.text;
+      updateStatus();
+      choicesElement.innerHTML = "";
+
+      if (scene.choices) {
+        scene.choices.forEach(choice => {
+          const btn = document.createElement("button");
+          btn.textContent = choice.text;
+          btn.onclick = () => {
+            clickSound.play();
+            showScene(choice.next);
+          };
+          choicesElement.appendChild(btn);
+        });
+      }
+    }
+
+    function updateStatus() {
+      statusElement.innerText = \`Inventory: \${inventory.length > 0 ? inventory.join(", ") : "Empty"}\`;
+    }
+
+    function startGame() {
+      playerName = prompt("Enter your name, Commander:");
+      if (!playerName || playerName.trim() === "") {
+        playerName = "Commander";
+      }
+      showScene("intro");
+    }
+
+    startGame();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('sw.js')
+        .then(() => console.log('✅ Service Worker registered'))
+        .catch(err => console.error('SW failed:', err));
+    }
+  </script>
+</body>
+</html>
